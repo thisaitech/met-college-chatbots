@@ -1,0 +1,166 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MET Engineering College Chatbot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        #chat-container {
+            border: 1px solid #ccc;
+            padding: 15px;
+            height: 400px;
+            overflow-y: scroll;
+            background-color: #fff;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .message {
+            margin: 10px;
+            padding: 12px;
+            border-radius: 8px;
+            line-height: 1.5;
+        }
+        .user {
+            background-color: #d1e7ff;
+            margin-left: 20%;
+        }
+        .bot {
+            background-color: #f0f0f0;
+            margin-right: 20%;
+        }
+        #input-container {
+            display: flex;
+            gap: 10px;
+        }
+        #user-input {
+            flex-grow: 1;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            padding: 8px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>MET Engineering College Chatbot</h1>
+    <p>Ask about MET Institute of Engineering, Nashik: placement, address, counseling code, or other details!</p>
+    <div id="chat-container"></div>
+    <div id="input-container">
+        <input type="text" id="user-input" placeholder="Type your question (e.g., 'placement details')">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+        console.log("Script loaded"); // Debug: Check if script runs
+        const responses = {
+            "placement": "MET Institute of Engineering, Nashik, has an excellent Training & Placement Cell that facilitates campus placements with top companies. Notable placements include Tanvi Nirmal at Walmart Global Technology Services (22.48 LPA), Giwil Gidwani at Gushup Technology (15 LPA), Abhishek Nahire at BYJU's (11 LPA), and others at companies like Capgemini (4.25 LPA). The placement cell offers workshops on aptitude, communication, and interview skills, ensuring students are well-prepared for the job market. Over 85% placement rates have been reported for similar institutions, though specific percentages for MET may vary.",
+            "address": "The MET Institute of Engineering is located at Bhujbal Knowledge City, Adgaon, Nashik, Maharashtra 422207, India. It’s 9.8 km from Odha railway station, 3.3 km from Jatra Hotel Bus Stop, and 14.5 km from Nashik International Airport, making it accessible for students.",
+            "counseling code": "The counseling code for MET Institute of Engineering, Nashik, is not explicitly listed in the provided data. Admissions are managed through the Directorate of Technical Education (DTE), Maharashtra, via the MHT-CET or JEE Main scores. For the exact code, contact the admission office at 0253-2303515 or enquiries@bkc.met.edu.",
+            "details": "MET Institute of Engineering, Nashik, established in 2006, is a private engineering college affiliated with Savitribai Phule Pune University and approved by AICTE. It offers 14 courses, including B.E. in Computer Engineering, Mechanical Engineering, AI & Data Science, and more, with a 4-year duration for undergraduate programs and 2 years for postgraduate programs. The institute is accredited by NAAC and has NBA accreditation for its Computer Engineering program (2020-23). The campus features modern infrastructure, Wi-Fi, labs, and libraries. Admissions require MHT-CET, JEE Main, or other relevant entrance exams, followed by DTE counseling. For more details, contact 0253-2303515 or visit metbhujbalknowledgecity.ac.in.",
+            "default": "I'm sorry, I didn't understand your question. Please ask about placement, address, counseling code, or general details about MET Institute of Engineering, Nashik. For example, try 'placement details' or 'college address'."
+        };
+
+        console.log("sendMessage defined"); // Debug: Check if function is defined
+        function sendMessage() {
+            console.log("sendMessage called"); // Debug: Check if function runs
+            const input = document.getElementById("user-input");
+            const message = input.value.trim().toLowerCase();
+            if (message === "") return;
+
+            // Add user message to chat
+            addMessage(message, "user");
+
+            // Get bot response based on keyword matching
+            let botResponse = responses["default"];
+            if (message.includes("placement") || message.includes("job")) {
+                botResponse = responses["placement"];
+            } else if (message.includes("address") || message.includes("location")) {
+                botResponse = responses["address"];
+            } else if (message.includes("counseling code") || message.includes("code")) {
+                botResponse = responses["counseling code"];
+            } else if (message.includes("details") || message.includes("information") || message.includes("about")) {
+                botResponse = responses["details"];
+            }
+
+            // Display bot response with a slight delay for natural feel
+            setTimeout(() => addMessage(botResponse, "bot"), 500);
+
+            // Clear input
+            input.value = "";
+        }
+
+        function addMessage(text, type) {
+            const chatContainer = document.getElementById("chat-container");
+            const messageDiv = document.createElement("div");
+            messageDiv.className = `message ${type}`;
+            messageDiv.innerHTML = text.replace(/\n/g, "<br>"); // Support line breaks
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Allow sending message with Enter key
+        document.getElementById("user-input").addEventListener("keypress", function(e) {
+            if (e.key === "Enter") {
+                console.log("Enter key pressed"); // Debug: Check if Enter key triggers
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
